@@ -143,7 +143,7 @@ def PointStats(zonalDf, raster, layerDict = None):
 #  and an overlapping raster, return a geodataframe with the raster stats
 #  for each row in a new column (one column per band per raster/stat combo)
 #--------------------------------------------------------------------------
-def ZonalStats(zonalDf, raster, layerDict):
+def ZonalStats(zonalDf, raster, layerDict = None):
     
     checkArgs(zonalDf, raster)
     
