@@ -16,8 +16,8 @@ import platform
 
 import numpy as np
 
-from RasterStack import RasterStack
-from FeatureClass import FeatureClass
+from models.RasterStack import RasterStack
+from models.FeatureClass import FeatureClass
 
 # Some global vars
 mainDir = '/explore/nobackup/people/mwooten3/3DSI/ZonalStats_2022'

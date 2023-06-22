@@ -26,8 +26,7 @@ import numpy as np
 
 from shapely.geometry import box, MultiPolygon
 
-#from functions import calculateElapsedTime
-from Raster import Raster 
+from models.Raster import Raster 
 
 
 # filter out RuntimeWarnings, due to geopandas/fiona read file spam

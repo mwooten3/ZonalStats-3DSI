@@ -32,8 +32,8 @@ from osgeo import ogr#gdal, osr#, ogr
 
 #from RasterStats import RasterStats#PointStats#, ZonalStats
 
-from RasterStack import RasterStack
-from ZonalDataFrame import ZonalDataFrame
+from models.RasterStack import RasterStack
+from models.ZonalDataFrame import ZonalDataFrame
 
 # RISKY!
 #warnings.filterwarnings("ignore",category=RuntimeWarning)
