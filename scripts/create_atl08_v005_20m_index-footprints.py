@@ -6,26 +6,17 @@ Created on Wed Jan 26 18:57:46 2022
 @author: mwooten3
 """
 
-# 1/20: Created from extract_filter_atl08_v005.py and edited to just get 
-    # min/max extent and save to index .csv file
-# There will probably be a lot of unnecessary stuff in here but whatever
+# Given a directory with extracted/filtered ATL08 v5 .csv files, create a 
+#  .shp that represents the spatial footprints of the .csv files
 
-# SAVING AS --> (edited from code/old_icesat2_icesat2)
-# 12/5/22: Editing to work with new 20m .csv outputs instead of old 100m .h5 files
-
-# COMBINING EVERYTHING HERE
-# Instead of 2 steps/4 scripts, gonna combine everything into one (here):
-## 1. Run through all .csv files in a given directory (NOT running in parallel 
+# PROCESS:
+## 1. Run through all .csv files in a given directory (not running in parallel 
 ##    because these operations should be fast and can't really write to .shp in parallel)
 ## 2. Get min/max extent for a given .csv file and build extent df
 ## 3. Write shape from bbox to .shp
 
-# Basically, we are mainly taking only the very beginnning of old createindex.py script
-#  and changing it to build a df that is fed to createfootprints.py script logic. instead of 
-#  1 script to build .csv then another to build .shp, bypass .csv creation step and
-#  build df to send directly to createfootprints.py logic
-
-# Example .csv file: 
+# 1/20: Created from extract_filter_atl08_v005.py and edited to just get 
+    # min/max extent and save to index .csv file
 
 import h5py
 #from osgeo import gdal
@@ -98,7 +89,6 @@ def createGeometry(row):
 
 
 # Get multipolygon list for subset with large xmin/xmax difference. List should be same size
-    # code is ugly AF but at this point i don't care lol
 def get_multipoly_list(df, latField, lonField):
     
     mpList = []
@@ -119,7 +109,7 @@ def get_multipoly_list(df, latField, lonField):
         sub_df2 = atl_df[(abs(atl_df[lonField] - atl_df[lonField].median())) 
                                                       <= atl_df[lonField].std()]
         
-        import pdb;pdb.set_trace()
+        #import pdb;pdb.set_trace()
         
         # For each dataframe, get new min/max extents to create polygons
         poly1 = box(sub_df1[lonField].min(), sub_df1[latField].min(), 
@@ -143,8 +133,6 @@ def exportDfToShp(df, outShp):
 ## main footprint code:
 def bbox_to_footprints(dfIn, outShp, latField, lonField, 
                                                 overwrite=False, debug=False):
-    
-    # dfIn is the extentIndex .csv (so what we just built)
     
     print("\nBuilding footprints from bbox dataframe...")
     
@@ -202,13 +190,12 @@ def bbox_to_footprints(dfIn, outShp, latField, lonField,
         if debug: print("\n\tCreated 'normal' gdf: {}".format(time.strftime("%m-%d-%y %I:%M:%S %p"))) 
 
     if len(df2.index) > 0:        
-        # For possibly fucked up polys: Call function to get multi polygons, build gdf
+        # For possibly messed up polys: Call function to get multi polygons, build gdf
         polys2 = get_multipoly_list(df2, latField, lonField)
         gdf2 = gpd.GeoDataFrame(df2, geometry = polys2, crs = 'EPSG:4326')
         if debug: print("\n\tCreated 'mutlipoly' gdf: {}".format(time.strftime("%m-%d-%y %I:%M:%S %p"))) 
     
     # Then combine into one gdf, or create a copy if one subdf is empty
-    #import pdb; pdb.set_trace()
     if len(df1.index) > 0 and len(df2.index) > 0:
         gdf = pd.concat([gdf1, gdf2])
     elif len(df1.index) == 0: # remember only one subdf should be empty at a time
@@ -217,10 +204,6 @@ def bbox_to_footprints(dfIn, outShp, latField, lonField,
         gdf = gdf1.copy() # Output gdf is from df1 subset
         
     if debug: print("\n\tCombined into one gdf: {}".format(time.strftime("%m-%d-%y %I:%M:%S %p"))) 
-
-    # No longer need
-    ## Add filepath field before exporting - NVM this is hdf file, not .csv file
-    #gdf['filepath'] = gdf.apply(lambda row: getFilePath(row.ATL08_File), axis = 1)
     
     # Save to .shp - need to append mode if file was already there and we skipped already processed files
     gdf.to_file(filename=outShp, driver="ESRI Shapefile", mode=writeMode)
@@ -229,8 +212,6 @@ def bbox_to_footprints(dfIn, outShp, latField, lonField,
     print("\nEnd: {}\n".format(time.strftime("%m-%d-%y %I:%M:%S %p")))
     
     return None
-
-    
     
 def create_atl08_index(args):
 
@@ -275,30 +256,6 @@ def create_atl08_index(args):
     #* Now continue with footprints logic in a separate function
     bbox_to_footprints(bbox_df, outfc, latField, lonField, overwrite, debug=True)
     
-    
-
-    
-            
-    """   # File path to ICESat-2h5 file
-    H5 = args.input
-    
-    # Get the filepath where the H5 is stored and filename
-    #inDir = '/'.join(H5.split('/')[:-1])
-    Name = H5.split('/')[-1].split('.')[0] 
-    
-    out = get_lat_lon_df(H5)
-    
-    xmin = out['lon'].min()
-    ymin = out['lat'].min()
-    xmax = out['lon'].max()
-    ymax = out['lat'].max()
-    
-    
-    # Get min/max extent
-    outRow = '{},{},{},{},{}\n'.format(Name, xmin, ymin, xmax, ymax)
-
-    with open(outCsv, 'a') as oc:
-        oc.write(outRow)"""
 
     calculateElapsedTime(start, time.time(), 'seconds')
     
@@ -310,7 +267,6 @@ def main():
                          help="Specify the input directory with the .csv files")
     parser.add_argument("-o", "--output", type=str, 
                                         help="Specify the output feature class")
-    
     parser.add_argument("-lat", "--latField", type=str, default='lat',
                  help="Specify the field to use for latitude (default = 'lat')")
     parser.add_argument("-lon", "--lonField", type=str, default='lon',

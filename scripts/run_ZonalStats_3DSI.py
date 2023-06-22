@@ -253,10 +253,6 @@ def main(args):
             rs = RasterStack(stack)
             check = os.path.join(mainDir, zonalType, stackType, region, rs.stackName,
               '{}__{}__{}Stats.csv'.format(zonalType, rs.stackName, statsType))
-            #print(check)
-            # not actually needed - #* TBD
-            #if region == 'EU':
-                #check = check.replace('{}__'.format(zonalType), '{}-EU__'.format(zonalType))
             
             if not overwrite:
                 if os.path.isfile(check):
@@ -265,9 +261,9 @@ def main(args):
             
             # Not running in parallel
             # 1/6/23: zonalType not zonalDir now
-            cmd = 'python {} -r {} -z {} -o {} -mode {}'.format( \
+            cmd = 'python {} -r {} -z {} -o {} -b {} -mode {}'.format( \
                           runScript, stack, args['zonalType'],     \
-                          varsDict['aggregateOutput'], args['statsType'])
+                          varsDict['aggregateOutput'], mainDir, args['statsType'])
             logging = True #* TD add as arg
             if logging:
                 cmd += ' -log'
@@ -301,56 +297,4 @@ if __name__ == "__main__":
 
     main(args)
 
-   
-"""
-def main():
-    
-    start = time.time()
-    #print("\nBegin: {}\n".format(time.strftime("%m-%d-%y %I:%M:%S %p"))) 
-
-    h5dir = '/css/icesat-2/ATLAS/ATL08.005'
-    
-    intxt = sys.argv[1]
-    outdir = sys.argv[2]
-    
-    split = True # True if you want to split input filelist among nodes
-    
-    with open(intxt, 'r') as it:
-        inFiles = [r.strip() for r in it.readlines()]
-
-    if split:       
-        runFiles = getNodeFiles(inFiles, platform.node())
-    else:
-        runFiles = inFiles
-        
-    # if node is not in list, runFiles might be None
-    if len(runFiles) == 0:
-        return None
-    
-    nFiles = len(runFiles)
-    print("Processing {} files...".format(nFiles))
-    cnt = 0
-
-    for bname in runFiles:
-        cnt+=1
-        #if cnt < 84: continue
-        
-        print(" {} of {} ({})".format(cnt, nFiles, bname))
-
-        date = bname.split('_')[1][0:8]
-        subdir = '{}.{}.{}'.format(date[0:4], date[4:6], date[6:8])
-        
-        inh5 = os.path.join(h5dir, subdir, '{}.h5'.format(bname))
-        
-        cmd = 'python extract_filter_atl08_v005.py -i {} -o {} --do_20m --log --no-overwrite'.format(inh5, outdir)
-        os.system(cmd)
-
-    
-    calculateElapsedTime(start, time.time())
-    
-    
-    return None
-
-if __name__ == "__main__":
-    main()
-"""
+ 

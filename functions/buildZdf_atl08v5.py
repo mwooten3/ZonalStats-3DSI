@@ -6,11 +6,10 @@ Given a raster extent and corresponding epsg, build a
  
 Function uses the .csv files where ATL08 data was extracted/filtered from .h5,
  and a footprints .shp of the .h5 files
--- Probably a better way to find the overlapping ATL08 files, but works for now
- 
 """
 import os
 import time
+import glob
 
 import pandas as pd
 import geopandas as gpd
@@ -21,7 +20,6 @@ from shapely.geometry import box, MultiPolygon
 
 #from functions import calculateElapsedTime
 
-
 # filter out RuntimeWarnings, due to geopandas/fiona read file spam
 # https://stackoverflow.com/questions/64995369/geopandas-warning-on-read-file
 import warnings
@@ -29,16 +27,8 @@ warnings.filterwarnings("ignore",category=RuntimeWarning)
 from shapely.errors import ShapelyDeprecationWarning
 warnings.filterwarnings("ignore", category=ShapelyDeprecationWarning) 
 
-# I think this can be set here, we do not need them outside of using to 
-#  build the initial ATL08 dataframe
-#  This shp should work for both 20m (yes) and 100m (untested) atl08 inputs
-# ONLY WORKS FOR 20m
+# Use scripts/create_atl08_v005_20m_index-footprints.py to create:
 indexShp = '/explore/nobackup/people/mwooten3/3DSI/ZonalStats_2022/ATL08/_fileFootprints/ATL08__boreal_all_20m__footprints.shp'
-# Not tested but only making 20m .csv fils from now on and can get subset of 
-# just 100m df if drop_20m in csvToGdf is True. So use same 20m .csv files
-# NOTE: hardcoded to only take NA outputs for now
-
-# /explore/nobackup/people/pmontesa/userfs02/data/icesat2/atl08.005/boreal_ea_20m
 
 # Given an extent/epsg build a geodataframe of ATL08 shots including attributes
 def buildZdf(rasterExtent, rasterEpsg, zonalDir, segLength = 20):
@@ -78,9 +68,7 @@ def buildZdf(rasterExtent, rasterEpsg, zonalDir, segLength = 20):
     # specific to ATL08 (v005)
     start2 = time.time()
     inputFiles = getZonalIndexList(indexShp, zonalDir, extentPoly)
-    
-    #print("time to make filelist:")
-    #print(calculateElapsedTime(start2, time.time()))
+
     
     # Using list of files, build large geodataframe of input zones
     print("Building gdf with {} inputs in {}".format(len(inputFiles), zonalDir))
@@ -117,16 +105,11 @@ def calculateElapsedTime(start, end, unit = 'minutes'):
     else:
         elapsedTime = round((time.time()-start), 4)  
         unit = 'seconds'
-        
-    #print("\nEnd: {}\n".format(time.strftime("%m-%d-%y %I:%M:%S %p")))
-    #print(" Elapsed time: {} {}\n".format(elapsedTime, unit))
     
     return "{} {}".format(elapsedTime, unit)
 
   
-def getCsvFullPath(bname, zonalDir):
-    
-    import glob    
+def getCsvFullPath(bname, zonalDir):    
 
     # Zonal dir will have either only 20m segment .csv's or only 100m
     search = glob.glob(os.path.join(zonalDir, '{}*.csv'.format(bname)))
@@ -136,36 +119,25 @@ def getCsvFullPath(bname, zonalDir):
      
     return search[0]
 
-# Given an .csv file with lat/lon fields (EPSG 4326), and an extent or extent 
-# polygon/gdf (optional), return a geodataframe with points as geometry
+# Given an ATL08 .csv file with lat/lon fields (EPSG 4326), and an extent or  
+# extent polygon/gdf (optional), return a geodataframe with points as geometry
 # srcEpsg is the projection of the .csv's lat/lon EPSG
-# Copying bbox terminology from gpd.read_file()
 def csvToGdf(csv, lonField = 'lon', latField = 'lat', bbox = None, 
                                              srcEpsg = 4326, drop_20m = False):
-    
-    #import warnings
-    #from shapely.errors import ShapelyDeprecationWarning
-    #warnings.filterwarnings("ignore", category=ShapelyDeprecationWarning) 
-    #start = time.time()
         
     # Read .csv into regular dataframe - 
     # .csv should have a latitude and longitude columns - default is 'lat'/'lon'
     df = pd.read_csv(csv)
-    
-    #* TD for 20m vs 100m segment stuff: At this point I can drop any 20m 
-    #  specific columns and remove duplicates, leaving us with 100m df
-    # if drop_20m:
-    #    df = get100mDf(df) # remove columns and duplicates to get 100m df
-        
-    # For whatever reason this was not caught earlier, but occasionally a lat/lon
-    # point will be very large/no data? This should be fixed in extraction code,
-    # but for now, remove them
+          
+    # Occasionally a lat/lon point will be very large/no data.
+    # This should be fixed in extraction code, but for now, remove them
     df = df.loc[(df[latField] != 3.402823466385289e+38)]
     
     # Pre-filter to speed things up
     # If bbox is supplied, go ahead and filter geographically on tabular data 
     
-    # 1/6/23: This will not really work if stack crosses antimeridian/aka is multipolygon
+    # 1/6/23: This won't throw an error, but just will not really work in the 
+    #          rare case that stack extent crosses antimeridian/is multipolygon
     if bbox is not None:# and bbox.type[0] == 'Polygon':
         
         # First, project coords to match .csv, if need be
@@ -185,8 +157,6 @@ def csvToGdf(csv, lonField = 'lon', latField = 'lat', bbox = None,
     
     geometry = gpd.points_from_xy(np.asarray(df[lonField]), 
                     np.asarray(df[latField]))
-    #print(geometry)
-    #import pdb; pdb.set_trace()
     
     gdf = gpd.GeoDataFrame(df, geometry = geometry, crs = 'EPSG:{}'.format(srcEpsg))
     """
@@ -206,16 +176,11 @@ def csvToGdf(csv, lonField = 'lon', latField = 'lat', bbox = None,
 
     return gdf
 
-
 # From an extent and projection, get GDF in Lat/Lon coords
 # srcEpsg is the projection of the stack extent representation
 # dstEpsg is the projection of the lat/lon fields from .csv files #* (or )
-    # Basically, creating a box in gdf using stack extent, then converting to
-    # match the geometry of ATL08 points
 def getExtentGdf(extent, srcEpsg, dstEpsg = 4326):
     
-    
-
     # Create shape from extent:
     (xmin, ymin, xmax, ymax) = extent
     extentPoly = gpd.GeoSeries([box(xmin, ymin, xmax, ymax, ccw=True)])
@@ -251,29 +216,14 @@ def getExtentGdf(extent, srcEpsg, dstEpsg = 4326):
         
     return extentGdf
     
-#* TO ZDF class ??
-# From an index .shp, get list of file basenames and build list of fullpaths to read into big zonal GDF
-    # Also supply extent in GPD dataframe, projected in 4326 
+# From an index .shp, get list of file basenames and build list of fullpaths to 
+# read into big zonal GDF. Also supply extent in GPD dataframe, in epsg:4326 
 def getZonalIndexList(indexShp, zonalDir, extentPolyGdf):
     
     # Read index .shp into gdf, using bbox which means no need to intersect
     indexGdf = gpd.read_file(indexShp, bbox=extentPolyGdf)
     
-    # Resulting index gdf has all zonal input files
-    # Should be accesible in 'filepath' field
-    #for r in indexGdf['ATL08_File'].tolist():
-     #   print(getCsvFullPath(r, zonalDir))
-     
-    #* DO THIS DIFFERENTLY!
-    #* apparently .apply() isn't super fast, id
-    # USE this instead 
-    #  gdf['polyGeom'] = list(map(lambda d, x, y: \
-#                           getPolyGeom(d, x, y, width, length), dd, xx, yy))
-    # OR, filepath needs to be created from input names
-    #indexGdf['filepath'] = indexGdf.apply(lambda row: getCsvFullPath(row['ATL08_File'], zonalDir), axis = 1)
-    #return indexGdf.loc[(indexGdf['filepath'] != 'DNE')]['filepath'].tolist()
-
-    # 1/6/23: ATL_path is now included in .shp as ATL08_path
+    # ATL_path is now included in .shp as ATL08_path
     return indexGdf.loc[(indexGdf['ATL08_path'] != 'DNE')]['ATL08_path'].tolist()
 
 
